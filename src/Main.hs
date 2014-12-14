@@ -24,7 +24,7 @@ import Data.Collections (fromList, elem)
 import Data.Cycle (Cycle)
 
 import Util (headMaybe, cshiftL, log2)
-import Path (path)
+import Path (path, pathFailed)
 
 
 type GenFunc = Int -> Int

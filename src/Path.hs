@@ -14,8 +14,9 @@
 -----------------------------------------------------------------------------
 
 module Path (
-      path
-    , Path
+      Path
+    , path
+    , pathFailed
 ) where
 
 import Prelude hiding (cycle, elem)
@@ -24,10 +25,10 @@ import Data.List ((\\), sortBy, intercalate)
 import Data.Function (on)
 import Data.Collections (elem, minimumBy, size)
 import Data.Cycle (Cycle, goRight, goLeft, getValue, rightValue, leftValue)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromJust)
 import Data.Monoid (Monoid, (<>))
 
-import Util (goTo)
+import Util (goTo, headMaybe)
 
 
 newtype Path = Path { unPath :: [Int] } deriving (Monoid)
@@ -55,15 +56,20 @@ pathCycle (from, to) cycle =
           p = bestPath [lp, rp]
 
 path :: (Int, Int) -> [Cycle Int] -> Path
-path = path' $ Path []
+path d c = fromJust $ path' (Path []) [] d c
 
-path' :: Path -> (Int, Int) -> [Cycle Int] -> Path
-path' res (from, to) cycles =
+pathFailed :: [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
+pathFailed = path' (Path [])
+
+path' :: Path -> [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
+path' res failed (from, to) cycles =
     case nears of
-       [] -> path' (res <> Path [from]) (neighbor, to) cycles
-       _  -> res <> bestPath nears
+       [] -> case neighbor of
+                 Nothing -> Nothing
+                 Just n  -> path' (res <> Path [from]) failed (n, to) cycles
+       _  -> Just $ res <> bestPath nears
     where nears = mapMaybe (pathCycle (from, to)) cycles
           incycles = sortBy (compare `on` size) $ filter (from `elem`) cycles
           allneighbors = concatMap (getNeighbors . goTo from) incycles
           getNeighbors c = [rightValue c, leftValue c]
-          neighbor = head (allneighbors \\ unPath res)
+          neighbor = headMaybe ((allneighbors \\ unPath res) \\ failed)
