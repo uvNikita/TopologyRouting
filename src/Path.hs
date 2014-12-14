@@ -40,10 +40,10 @@ instance Show Path where
 bestPath :: [Path] -> Path
 bestPath = minimumBy (compare `on` size . unPath)
 
-pathCycle :: (Int, Int) -> Cycle Int -> Maybe Path
-pathCycle (from, to) cycle =
+pathCycle :: [Int] -> (Int, Int) -> Cycle Int -> Maybe Path
+pathCycle failed (from, to) cycle =
     if from `elem` cycle && to `elem` cycle
-        then Just p
+        then p
         else Nothing
     where cycle' = goTo from cycle
           pathCycle' go = reverse . snd $ result
@@ -53,13 +53,19 @@ pathCycle (from, to) cycle =
                     reached (_, [])    = False
           lp = Path $ pathCycle' goLeft
           rp = Path $ pathCycle' goRight
-          p = bestPath [lp, rp]
+          isFailed p = any (`elem` unPath p) failed
+          p = case (isFailed lp, isFailed rp) of
+                  (True,  True)  -> Nothing
+                  (True,  False) -> Just rp
+                  (False, True)  -> Just lp
+                  (False, False) -> Just $ bestPath [lp, rp]
 
 path :: (Int, Int) -> [Cycle Int] -> Path
 path d c = fromJust $ path' (Path []) [] d c
 
 pathFailed :: [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 pathFailed = path' (Path [])
+
 
 path' :: Path -> [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 path' res failed (from, to) cycles =
@@ -68,7 +74,7 @@ path' res failed (from, to) cycles =
                  Nothing -> Nothing
                  Just n  -> path' (res <> Path [from]) failed (n, to) cycles
        _  -> Just $ res <> bestPath nears
-    where nears = mapMaybe (pathCycle (from, to)) cycles
+    where nears = mapMaybe (pathCycle failed (from, to)) cycles
           incycles = sortBy (compare `on` size) $ filter (from `elem`) cycles
           allneighbors = concatMap (getNeighbors . goTo from) incycles
           getNeighbors c = [rightValue c, leftValue c]
