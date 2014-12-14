@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 
 executable TopologyRouting
   main-is: Main.hs
-  other-modules: Util Path
+  other-modules: Util Path Topology
   -- other-extensions:
   build-depends: base >=4.7 && <4.8
                , data-cycle -any
