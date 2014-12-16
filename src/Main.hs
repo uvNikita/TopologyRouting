@@ -17,7 +17,7 @@ module Main (
 ) where
 
 import Topology (cycles)
-import Path (path, pathFailed)
+import Path (path, pathFailed, broadcast)
 
 
 main :: IO ()

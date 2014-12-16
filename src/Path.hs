@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  Path
@@ -17,16 +18,20 @@ module Path (
       Path
     , path
     , pathFailed
+    , broadcast
 ) where
 
 import Prelude hiding (cycle, elem)
 
-import Data.List ((\\), sortBy, intercalate)
+import Data.List ((\\), sortBy, intercalate, nubBy, nub)
+import Data.Set (toList, union)
 import Data.Function (on)
-import Data.Collections (elem, minimumBy, size)
+import Data.Collections (elem, minimumBy, size, fromList)
 import Data.Cycle (Cycle, goRight, goLeft, getValue, rightValue, leftValue)
 import Data.Maybe (mapMaybe, fromJust)
 import Data.Monoid (Monoid, (<>))
+
+import Control.Applicative ((<$>))
 
 import Util (goTo, headMaybe)
 
@@ -39,6 +44,10 @@ instance Show Path where
 
 bestPath :: [Path] -> Path
 bestPath = minimumBy (compare `on` size . unPath)
+
+neighbors :: Int -> [Cycle Int] -> [Int]
+neighbors node = nub . concatMap (directNeighbors . goTo node) . filter (node `elem`)
+    where directNeighbors c = [rightValue c, leftValue c]
 
 pathCycle :: [Int] -> (Int, Int) -> Cycle Int -> Maybe Path
 pathCycle failed (from, to) cycle =
@@ -66,6 +75,15 @@ path d c = fromJust $ path' (Path []) [] d c
 pathFailed :: [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 pathFailed = path' (Path [])
 
+broadcast :: Int -> [Cycle Int] -> [[(Int, Int)]]
+broadcast start cycles = step $ fromList [start]
+    where step done = case new of
+                        [] -> []
+                        _ -> new : step done'
+              where new = uniq . mapMaybe transmit $ toList done
+                    transmit n = (n, ) <$> headMaybe (neighbors n cycles \\ toList done)
+                    uniq = nubBy ((==) `on` snd)
+                    done' = done `union` fromList (map snd new)
 
 path' :: Path -> [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 path' res failed (from, to) cycles =
@@ -76,6 +94,4 @@ path' res failed (from, to) cycles =
        _  -> Just $ res <> bestPath nears
     where nears = mapMaybe (pathCycle failed (from, to)) cycles
           incycles = sortBy (compare `on` size) $ filter (from `elem`) cycles
-          allneighbors = concatMap (getNeighbors . goTo from) incycles
-          getNeighbors c = [rightValue c, leftValue c]
-          neighbor = headMaybe ((allneighbors \\ unPath res) \\ failed)
+          neighbor = headMaybe ((neighbors from incycles \\ unPath res) \\ failed)
