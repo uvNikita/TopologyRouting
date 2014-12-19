@@ -19,6 +19,7 @@ module Path (
     , path
     , pathFailed
     , broadcast
+    , broadcastFailed
 ) where
 
 import Prelude hiding (cycle, elem)
@@ -75,17 +76,19 @@ path d c = fromJust $ path' (Path []) [] d c
 pathFailed :: [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 pathFailed = path' (Path [])
 
-broadcast :: Int -> [Cycle Int] -> [[(Int, Int)]]
-broadcast start cycles = step $ fromList [start]
+broadcastFailed :: [Int] -> Int -> [Cycle Int] -> [[(Int, Int)]]
+broadcastFailed failed start cycles = step $ fromList [start]
     where step done = case new of
                         [] -> []
                         _ -> new : step done'
               where new = foldr add [] (toList done)
-                    add n acc = case (neighbors n cycles \\ used) \\ toList done of
+                    add n acc = case ((neighbors n cycles \\ failed) \\ used) \\ toList done of
                                     [] -> acc
                                     neighbor : _ -> (n, neighbor) : acc
                                     where used = map snd acc
                     done' = done `union` fromList (map snd new)
+
+broadcast = broadcastFailed []
 
 path' :: Path -> [Int] -> (Int, Int) -> [Cycle Int] -> Maybe Path
 path' res failed (from, to) cycles =
